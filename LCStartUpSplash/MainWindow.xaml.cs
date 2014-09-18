@@ -24,16 +24,19 @@ namespace LCStartUpSplash
     public partial class MainWindow : Window
     {
         string ExecutingDirectory;
+        string Programname = "LegendaryClient";
+        string ProgramAbr = "LC";
         public MainWindow()
         {
             InitializeComponent();
             ExecutingDirectory = System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            ProgramTitle.Content = Programname;
             var CurrentVersion = RetreiveLatestInstall();
             //Cannot read file, abort mission
             if (CurrentVersion == null)
             {
-                MessageBox.Show("Unable to read version file. Please re-install LegendaryClient or try running this program as admin",
-                    "LegendaryClient Error",
+                MessageBox.Show("Unable to read version file. Please re-install " + Programname + " or try running this program as admin",
+                    Programname + " Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
                 Environment.Exit(0);
@@ -54,21 +57,21 @@ namespace LCStartUpSplash
 
             }
         }
-        private void RetreveLatestLCVersion()
+        private void RetreveLatestVersion()
         {
 
         }
-        private void InstallLatestLC(string DLLink)
+        private void InstallLatest(string DLLink)
         {
 
         }
         private string RetreiveLatestInstall()
         {
-            if (File.Exists(System.IO.Path.Combine(ExecutingDirectory, "Client", "LCVersion.Version")))
+            if (File.Exists(System.IO.Path.Combine(ExecutingDirectory, "Client", ProgramAbr + "Version.Version")))
             {
                 try
                 {
-                    var sr = new StreamReader(System.IO.Path.Combine(ExecutingDirectory, "Client", "LCVersion.Version"));
+                    var sr = new StreamReader(System.IO.Path.Combine(ExecutingDirectory, "Client", ProgramAbr + "Version.Version"));
                     return sr.ReadToEnd();
                 }
                 catch

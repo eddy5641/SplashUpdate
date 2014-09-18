@@ -4,7 +4,7 @@
         Title="MainWindow" Height="100" Width="200"  AllowsTransparency="True" WindowStyle="None"
         Background="Transparent" WindowStartupLocation="CenterScreen" LostFocus="Window_LostFocus" Topmost="True" ShowInTaskbar="False" >
     <Grid>
-        <Label Content="LegendaryClient" HorizontalAlignment="Left" HorizontalContentAlignment="Center" VerticalAlignment="Top" FontSize="30" FontFamily="/LCStartUpSplash;component/#Lobster 1.3" Foreground="#FF151515"/>
+        <Label x:Name="ProgramTitle"  Content="LegendaryClient" HorizontalAlignment="Left" HorizontalContentAlignment="Center" VerticalAlignment="Top" FontSize="30" FontFamily="/LCStartUpSplash;component/#Lobster 1.3" Foreground="#FF151515"/>
         <ProgressBar HorizontalAlignment="Left" Height="15" VerticalAlignment="Top" Width="200" Margin="0,82,0,0"/>
         <Label Content="Loading..." HorizontalContentAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,51,0,0" Width="200" Foreground="#FF1F1F1F"/>
 
