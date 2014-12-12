@@ -140,16 +140,18 @@ namespace LCStartUpSplash
         {
             try
             {
-                ZipFile.ExtractToDirectory(System.IO.Path.Combine(ExecutingDirectory, "temp", "Client.zip"), System.IO.Path.Combine(ExecutingDirectory));
+                ZipFile.ExtractToDirectory(System.IO.Path.Combine(ExecutingDirectory, "temp", "Client.zip"), System.IO.Path.Combine(ExecutingDirectory, "Client"));
+                Directory.Delete(System.IO.Path.Combine(ExecutingDirectory, "temp"), true);
+                LaunchLC();
             }
             catch
             {
-
+                MessageBox.Show("Unable to extract LC. Try reinstall",
+                    Programname + " Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
             }
-            Directory.Delete(System.IO.Path.Combine(ExecutingDirectory, "temp"), true);
-            if (File.Exists(System.IO.Path.Combine(ExecutingDirectory, "temp", "LCStartUpSplash")))
-                File.Delete(System.IO.Path.Combine(ExecutingDirectory, "temp", "LCStartUpSplash"));
-            LaunchLC();
+            
         }
 
         void client_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
@@ -161,7 +163,6 @@ namespace LCStartUpSplash
                 double totalBytes = double.Parse(e.TotalBytesToReceive.ToString());
                 double percentage = bytesIn / totalBytes * 100;
                 int half = int.Parse(Math.Truncate(percentage).ToString());
-                //Solution to values not showing up
                 Progress.Value = (half);
             }));
         }
