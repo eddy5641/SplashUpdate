@@ -1,52 +1,50 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Reflection;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using System.Windows.Threading;
+using Path = System.IO.Path;
 
 namespace LCStartUpSplash
 {
     /// <summary>
     /// Interaction logic for Main.xaml
     /// </summary>
-    public partial class Main : Page
+    public partial class Main
     {
-        string ExecutingDirectory;
-        string Programname = "LegendaryClient";
-        string ProgramAbr = "LC";
+        string _executingDirectory = "";
+        private const string Programname = "LegendaryClient";
+        private const string ProgramAbr = "LC";
 
         string dlLink;
-        public Main()
+        public Main(MainWindow mWindow)
         {
             InitializeComponent();
-            Thread bgThead = new Thread(() =>
+            var bgThead = new Thread(() =>
             {
-                ExecutingDirectory = System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                _executingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
                 Dispatcher.BeginInvoke(DispatcherPriority.Input, new ThreadStart(() =>
                 {
                     ProgramTitle.Content = Programname;
-                    this.Visibility = Visibility.Visible;
+                    Visibility = Visibility.Visible;
                 }));
-                var CurrentVersion = RetreiveLatestInstall();
+                var currentVersion = RetreiveLatestInstall();
                 //Cannot read file, abort mission
-                if (CurrentVersion == null)
+                if (currentVersion == null)
                 {
+                    Dispatcher.BeginInvoke(
+                        DispatcherPriority.Input, new ThreadStart(() =>
+                            {
+                                mWindow.Visibility = Visibility.Hidden;
+                            }));
                     MessageBox.Show("Unable to read version file. Please re-install " + Programname + " or try running this program as admin",
                         Programname + " Error",
                         MessageBoxButton.OK,
@@ -55,24 +53,27 @@ namespace LCStartUpSplash
                 }
                 else
                 {
-                    if (CurrentVersion != RetreveLatestVersion())
+                    if (currentVersion != RetreveLatestVersion())
                     {
-                        string client = System.IO.Path.Combine(ExecutingDirectory, "Client");
-                        if (Directory.Exists(client))
-                            Directory.Delete(client, true);
+                        if (_executingDirectory != null) 
+                        {
+                            var client = Path.Combine(_executingDirectory, "Client");
+                            if (Directory.Exists(client))
+                                Directory.Delete(client, true);
+                        }
 
                         InstallLatest(new Uri(dlLink));
                     }
                     else
                     {
-                        LaunchLC();
+                        LaunchLc();
                     }
                 }
             });
 
             bgThead.Start();
         }
-        private void LaunchLC()
+        private void LaunchLc()
         {
             Dispatcher.BeginInvoke(DispatcherPriority.Input, new ThreadStart(() =>
             {
@@ -81,8 +82,13 @@ namespace LCStartUpSplash
             Thread.Sleep(5000);
             try
             {
-                var p = new System.Diagnostics.Process();
-                p.StartInfo.FileName = System.IO.Path.Combine(ExecutingDirectory, "Client", "LegendaryClient.exe");
+                var p = new Process
+                {
+                    StartInfo =
+                    {
+                        FileName = Path.Combine(_executingDirectory, "Client", "LegendaryClient.exe")
+                    }
+                };
                 p.Start();
             }
             catch
@@ -98,20 +104,15 @@ namespace LCStartUpSplash
         {
             try
             {
-                using (WebClient client = new WebClient())
+                using (var client = new WebClient())
                 {
-                    JavaScriptSerializer serializer = new JavaScriptSerializer();
+                    var json = client.DownloadString("http://eddy5641.github.io/LegendaryClient/Releases.Json");
+                    var deserializedJson = new JavaScriptSerializer().Deserialize<RootObject>(json);
 
-                    string Json = client.DownloadString("http://eddy5641.github.io/LegendaryClient/Releases.Json");
-                    RootObject deserializedJSON = serializer.Deserialize<RootObject>(Json);
-
-                    foreach (LCVersion versions in deserializedJSON.LCVersions)
+                    foreach (var versions in deserializedJson.LcVersions.Where(versions => versions.IsLatest)) 
                     {
-                        if (versions.isLatest)
-                        {
-                            dlLink = versions.DownloadLink;
-                            return versions.VersionId;
-                        }
+                        dlLink = versions.DownloadLink;
+                        return versions.VersionId;
                     }
                     return null;
                 }
@@ -121,28 +122,29 @@ namespace LCStartUpSplash
                 return null;
             }
         }
-        private void InstallLatest(Uri DLLink)
+        private void InstallLatest(Uri dlUri)
         {
-            string path = System.IO.Path.Combine(ExecutingDirectory, "temp");
+            var path = Path.Combine(_executingDirectory, "temp");
             if (Directory.Exists(path))
                 Directory.Delete(path, true);
 
-            Directory.CreateDirectory(System.IO.Path.Combine(ExecutingDirectory, "temp"));
-            using (WebClient client = new WebClient())
+            Directory.CreateDirectory(Path.Combine(_executingDirectory, "temp"));
+            using (var client = new WebClient())
             {
-                client.DownloadProgressChanged += client_DownloadProgressChanged;
-                client.DownloadFileCompleted += client_DownloadFileCompleted;
-                client.DownloadFileAsync(DLLink, System.IO.Path.Combine(ExecutingDirectory, "temp", "Client.zip"));
+                client.DownloadProgressChanged += ClientDownloadProgressChanged;
+                client.DownloadFileCompleted += ClientDownloadFileCompleted;
+                client.DownloadFileAsync(dlUri, Path.Combine(_executingDirectory, "temp", "Client.zip"));
             }
         }
 
-        void client_DownloadFileCompleted(object sender, System.ComponentModel.AsyncCompletedEventArgs e)
+        void ClientDownloadFileCompleted(object sender, System.ComponentModel.AsyncCompletedEventArgs e)
         {
             try
             {
-                ZipFile.ExtractToDirectory(System.IO.Path.Combine(ExecutingDirectory, "temp", "Client.zip"), System.IO.Path.Combine(ExecutingDirectory, "Client"));
-                Directory.Delete(System.IO.Path.Combine(ExecutingDirectory, "temp"), true);
-                LaunchLC();
+                ZipFile.ExtractToDirectory(Path.Combine(_executingDirectory, "temp", "Client.zip"), Path.Combine(_executingDirectory, "temp"));
+                Directory.Move(Path.Combine(_executingDirectory, "temp", "Client"), Path.Combine(_executingDirectory, "Client"));
+                Directory.Delete(Path.Combine(_executingDirectory, "temp"), true);
+                LaunchLc();
             }
             catch
             {
@@ -154,25 +156,26 @@ namespace LCStartUpSplash
             
         }
 
-        void client_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
+        void ClientDownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
         {
             Dispatcher.BeginInvoke(DispatcherPriority.Input, new ThreadStart(() =>
             {
                 Current.Content = "Updating LegendaryClient";
-                double bytesIn = double.Parse(e.BytesReceived.ToString());
-                double totalBytes = double.Parse(e.TotalBytesToReceive.ToString());
-                double percentage = bytesIn / totalBytes * 100;
-                int half = int.Parse(Math.Truncate(percentage).ToString());
+                var bytesIn = double.Parse(e.BytesReceived.ToString());
+                var totalBytes = double.Parse(e.TotalBytesToReceive.ToString());
+                var percentage = bytesIn / totalBytes * 100;
+                var half = int.Parse(Math.Truncate(percentage).ToString(CultureInfo.InvariantCulture));
                 Progress.Value = (half);
             }));
         }
         private string RetreiveLatestInstall()
         {
-            if (File.Exists(System.IO.Path.Combine(ExecutingDirectory, "Client", ProgramAbr + "Version.Version")))
+            if (File.Exists(Path.Combine(_executingDirectory, "Client", ProgramAbr + "Version.Version")))
             {
                 try
                 {
-                    var sr = new StreamReader(System.IO.Path.Combine(ExecutingDirectory, "Client", ProgramAbr + "Version.Version"));
+                    var sr =
+                        new StreamReader(Path.Combine(_executingDirectory, "Client", ProgramAbr + "Version.Version"));
                     return sr.ReadToEnd();
                 }
                 catch
@@ -180,13 +183,25 @@ namespace LCStartUpSplash
                     return null;
                 }
             }
-            else
-                return null;
+            else if (File.Exists(Path.Combine(_executingDirectory, "Client", "LegendaryClient.exe")))
+            {
+                try
+                {
+                    return
+                        FileVersionInfo.GetVersionInfo(
+                            Path.Combine(_executingDirectory, "Client", "LegendaryClient.exe")).FileVersion;
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+            return null;
         }
     }
-    public class LCVersion
+    public class LcVersion
     {
-        public bool isLatest { get; set; }
+        public bool IsLatest { get; set; }
         public string VersionId { get; set; }
         public string VersionName { get; set; }
         public string VersionDescription { get; set; }
@@ -197,6 +212,6 @@ namespace LCStartUpSplash
 
     public class RootObject
     {
-        public List<LCVersion> LCVersions { get; set; }
+        public List<LcVersion> LcVersions { get; set; }
     }
 }
